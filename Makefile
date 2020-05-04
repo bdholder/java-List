@@ -42,7 +42,7 @@ $(EnvironmentClassUnderTestParameterResolver): src/EnvironmentClassUnderTestPara
 $(List): List.java
 	javac -d . List.java
 
-$(ListTests): src/ListTests.java $(EnvironmentClassUnderTestParameterResolver) $(class_under_test_class_file) $(List)
+$(ListTests): src/ListTests.java $(EnvironmentClassUnderTestParameterResolver) $(List)
 	$(junitc) -d . src/ListTests.java
 
 $(SimpleConsoleLauncher): src/SimpleConsoleLauncher.java
