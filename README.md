@@ -3,6 +3,9 @@ This repository contains a collection of unit tests for classes implementing a s
 
 The unit tests expect the observable behavior of the included methods to be identical to that of the "real" `List`, except there are no tests to check that iterators throw a [`ConcurrentModificationException`](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/ConcurrentModificationException.html). Only the non-default methods of [`Iterator`](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Iterator.html) are tested.
 
+## Implementing `ArrayList`
+Consult the file [Implementation.md](Implementation.md) for step-by-step explanations on how to create a functioning `ArrayList`.
+
 ## Running the tests
 From repl.it, you should only need to click the "Run" button to run all of the tests. You can also run the command `make` from the shell.
 
