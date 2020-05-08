@@ -1,15 +1,17 @@
 package org.roundrockisd.stonypoint.util;
 
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.ListIterator;
 import org.roundrockisd.stonypoint.util.List;
 
 public class ArrayList implements List {
-
-    // TODO: add any fields needed here
+    private Object[] elementData;
+    private int size;
 
     public ArrayList() {
-        // TODO: implement me
+        elementData = new Object[10];
+        size = 0;
     }
 
     @Override
@@ -19,14 +21,17 @@ public class ArrayList implements List {
 
     @Override
     public boolean add(Object element) {
-        // TODO: implement me
-        return false;
+        if (size >= elementData.length) {
+            elementData = Arrays.copyOf(elementData, size * 2);
+        }
+        elementData[size] = element;
+        size++;
+        return true;
     }
 
     @Override
     public Object get(int index) {
-        // TODO: implement me
-        return null;
+        return elementData[index];
     }
 
     @Override

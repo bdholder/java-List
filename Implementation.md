@@ -110,3 +110,174 @@ Because we store all data contiguously, and because indexing in Java starts at 0
 Incrementing `size` is also easy, as is returning `true`. But, why return `true` at all? Why doesn't `add(Object)` have a return type of `void` like `add(int, Object)`? The reason is that the for-realsies [`List`](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/List.html) interface is an extension of the [`Collection`](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Collection.html) interface, which is meant to be implemented by a wide variety of data structures. For some kinds of collections, like a [`Set`](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Set.html), `add`ing an element under certain conditions doesn't make sense, so `add` can sometimes return `false`. However, `add`ing will always succeed for an `ArrayList`, so we always return `true`.
 
 `add(int, Object)` is `void` because it is only in the `List` interface, not the `Collection` interface.
+
+### Fixing `add(Object)`
+Let's fix `add(Object)` so that it can correctly acquire more storage when necessary. First, let's modify the constructor to only allocate an array of length 10, and then see what happens if we run the tests again.
+
+```java
+public ArrayList() {
+    elementData = new Object[10];
+    size = 0;
+}
+```
+
+```
+└─ JUnit Jupiter ✔
+   └─ ListTests ✔
+      └─ when new ✔
+         └─ core tests ✔
+            ├─ test add(Object), get(int) once ✔
+            └─ test add(Object), get(int) multiple times ✘ Index 10 out of bounds for length 10
+
+Failures (1):
+  JUnit Jupiter:ListTests:when new:core tests:test add(Object), get(int) multiple times
+    MethodSource [className = 'org.roundrockisd.stonypoint.test.ListTests$WhenNew$CoreTests', methodName = 'addGetMultiple', methodParameterTypes = '']
+    => java.lang.ArrayIndexOutOfBoundsException: Index 10 out of bounds for length 10
+       org.roundrockisd.stonypoint.util.ArrayList.add(ArrayList.java:23)
+       org.roundrockisd.stonypoint.test.ListTests.add(ListTests.java:60)
+       org.roundrockisd.stonypoint.test.ListTests$WhenNew$CoreTests.lambda$addGetMultiple$0(ListTests.java:148)
+       java.base/java.util.stream.Streams$RangeIntSpliterator.forEachRemaining(Streams.java:104)
+       java.base/java.util.stream.IntPipeline$Head.forEachOrdered(IntPipeline.java:603)
+       org.roundrockisd.stonypoint.test.ListTests$WhenNew$CoreTests.addGetMultiple(ListTests.java:147)
+       java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+       java.base/jdk.internal.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+       java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)
+       java.base/java.lang.reflect.Method.invoke(Method.java:566)
+       [...]
+
+Test run finished after 1368 ms
+[         4 containers found      ]
+[         0 containers skipped    ]
+[         4 containers started    ]
+[         0 containers aborted    ]
+[         4 containers successful ]
+[         0 containers failed     ]
+[         2 tests found           ]
+[         0 tests skipped         ]
+[         2 tests started         ]
+[         0 tests aborted         ]
+[         1 tests successful      ]
+[         1 tests failed          ]
+```
+
+Yikes. That's a lot of output. Let's make some sense of it. There are two sections of output that you'll see if all tests succeed: the "test tree" and the test summary. If there are test failures, you'll see a failure list in between the test tree and test summary.
+
+We currently have one failure which is marked in both the test tree and indicated in the failure list: `test add(Object), get(int) multiple times ✘ Index 10 out of bounds for length 10`. The name of the failed test is `add(Object), get(int) multiple times` and the error message is `Index 10 out of bounds for length 10`.
+
+The failure list will give us more information about what went wrong. It gives the name of the failed test followed by a *stack trace*: a list of the methods that have been called but not yet returned with the most recently called method on top. The exception that caused the failure is directly above the stack trace: `=> java.lang.ArrayIndexOutOfBoundsException: Index 10 out of bounds for length 10`. The message indicates that we attempted to access index 10 in an array of length 10, which is out of bounds because the valid indices for an array of length 10 are 0 through 9.
+
+The top line of the stack trace is `org.roundrockisd.stonypoint.util.ArrayList.add(ArrayList.java:23)`. This means that the `add` method in the class `ArrayList` was the most recently called method, and the exception occurred on line 23 of the file `ArrayList.java`. Line 23 is `elementData[size] = element;`, the attempted array assignment that failed because we ran out of space.
+
+Now that we have some idea of how to interpret errors, let's fix it. Pseudocode for the fix might look something like
+
+```java
+@Override
+public boolean add(Object element) {
+    if (/* out of space in elementData */) {
+        // create array with more storage
+        // copy contents of old to new array
+        // assign the reference of the new array to elementData
+    }
+    elementData[size] = element;
+    size++;
+    return true;
+}
+```
+
+Sketching out pseudocode in comments can be a really useful technique because it helps you remember the high-level strategy before you dive into the weeds and sort out the details.
+
+The first piece to sort out is formalizing "out of space in `elementData`". One way to do this is to consider the opposite condition, and then reverse it: if we have enough space to add an element to `elementData`, then `size` must be less than `elementData.length`. Therefore, if we *don't* have enough space, then it must *not* be true that `size` is less than `elementData.length`. A common mistake is to negative an expression of the form `A < B` by writing `A > B`, but this is incorrect as it could also be the case that `A == B`. The correct negation of `A < B` is `A >= B`. Thus, the negation of `size < elementData.length` is `size >= elementData.length`.
+
+```java
+if (size >= elementData.length) {
+    // create array with more storage
+    // copy contents of old to new array
+    // assign the reference of the new array to elementData
+}
+```
+
+Next, we need to create an array with more storage space. How much more? We're adding a single element, so it may seem like the best option is to create an array with one extra slot: `new Object[size + 1]`. There are drawbacks to this approach, however. While we (almost) never have more space in our array than we need, every time an element is added, a copy of the entire array must be made. The time cost of making such a copy will be proportional to the current size of the backing array.
+
+We will utilize a different strategy: doubling the size of the array. While we will usually be using more space than we strictly need, adding new elements to the array will usually be cheap timewise.
+
+The differences between these two strategies illustrate a recurring concept in computer science: a time-space tradeoff. We are often presented with situations where we can increase the amount of space an algorithm uses to save time, or we can decrease space usage by increasing running time.
+
+Creating a new array with twice the size is simple.
+
+```java
+if (size >= elementData.length) {
+    // create array with more storage
+    Object[] newElementData = new Object[size * 2];
+    // copy contents of old to new array
+    // assign the reference of the new array to elementData
+}
+```
+
+There is an edge case here that could trip us up in the future. If we were to revise our `ArrayList` class to initially have a size of 0, our resizing code wouldn't work because `0 * 2 ==> 0`, so we would just get an `ArrayIndexOutOfBoundsException` when attempting to add to the `ArrayList`. It would probably be a good idea to create a new array of length `size * 2 + 1`, but we won't worry about that.
+
+This edge case illustrates how errors can creep into code over time. A section of code written with unstated assumptions for its correctness can fail if those assumptions become false in the future.
+
+Next, we need to copy all of the values from the old array to the new one. The easiest way to do this is with a for loop.
+
+```java
+if (size >= elementData.length) {
+    // create array with more storage
+    Object[] newElementData = new Object[size * 2];
+    // copy contents of old to new array
+    for (int i = 0; i < size; i++) {
+        newElementData[i] = elementData[i];
+    }
+    // assign the reference of the new array to elementData
+}
+```
+
+Finally, we need to assign the reference held by `newElementData` to `elementData`. Otherwise, `elementData` will still point to the old array.
+
+```java
+if (size >= elementData.length) {
+    // create array with more storage
+    Object[] newElementData = new Object[size * 2];
+    // copy contents of old to new array
+    for (int i = 0; i < size; i++) {
+        newElementData[i] = elementData[i];
+    }
+    // assign the reference of the new array to elementData
+    elementData = newElementData;
+}
+```
+
+In full, our `add(Object)` method (with comments removed) now looks like
+
+```java
+@Override
+public boolean add(Object element) {
+    if (size >= elementData.length) {
+        Object[] newElementData = new Object[size * 2];
+        for (int i = 0; i < size; i++) {
+            newElementData[i] = elementData[i];
+        }
+        elementData = newElementData;
+    }
+    elementData[size] = element;
+    size++;
+    return true;
+}
+```
+
+Running `make INCLUDE_TAG='core'` again, we see that both core tests pass.
+
+Making a new array containing the contents of another array is sufficiently common that there is a method in the standard library for it: [copyOf](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/Arrays.html#copyOf(T%5B%5D,int)). We could have instead written
+
+```java
+@Override
+public boolean add(Object element) {
+    if (size >= elementData.length) {
+        elementData = Arrays.copyOf(elementData, size * 2);
+    }
+    elementData[size] = element;
+    size++;
+    return true;
+}
+```
+
+We should avoid reinventing the wheel, so the second option is the better one. I simply showed how to do it manually for demonstration purposes.
