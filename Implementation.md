@@ -186,7 +186,7 @@ public boolean add(Object element) {
 
 Sketching out pseudocode in comments can be a really useful technique because it helps you remember the high-level strategy before you dive into the weeds and sort out the details.
 
-The first piece to sort out is formalizing "out of space in `elementData`". One way to do this is to consider the opposite condition, and then reverse it: if we have enough space to add an element to `elementData`, then `size` must be less than `elementData.length`. Therefore, if we *don't* have enough space, then it must *not* be true that `size` is less than `elementData.length`. A common mistake is to negative an expression of the form `A < B` by writing `A > B`, but this is incorrect as it could also be the case that `A == B`. The correct negation of `A < B` is `A >= B`. Thus, the negation of `size < elementData.length` is `size >= elementData.length`.
+The first piece to sort out is formalizing "out of space in `elementData`". One way to do this is to consider the opposite condition, and then reverse it: if we have enough space to add an element to `elementData`, then `size` must be less than `elementData.length`. Therefore, if we *don't* have enough space, then it must *not* be true that `size` is less than `elementData.length`. A common mistake is to negate an expression of the form `A < B` by writing `A > B`, but this is incorrect as it could also be the case that `A == B`. The correct negation of `A < B` is `A >= B`. Thus, the negation of `size < elementData.length` is `size >= elementData.length`.
 
 ```java
 if (size >= elementData.length) {
