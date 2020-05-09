@@ -60,13 +60,13 @@ public class ArrayList implements List {
 
     @Override
     public Object set(int index, Object element) {
-        // TODO: implement me
-        return null;
+        Object old = elementData[index];
+        elementData[index] = element;
+        return old;
     }
 
     @Override
     public int size() {
-        // TODO: implement me
-        return -1;
+        return size;
     }
 }

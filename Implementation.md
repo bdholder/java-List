@@ -186,7 +186,7 @@ public boolean add(Object element) {
 
 Sketching out pseudocode in comments can be a really useful technique because it helps you remember the high-level strategy before you dive into the weeds and sort out the details.
 
-The first piece to sort out is formalizing "out of space in `elementData`". One way to do this is to consider the opposite condition, and then reverse it: if we have enough space to add an element to `elementData`, then `size` must be less than `elementData.length`. Therefore, if we *don't* have enough space, then it must *not* be true that `size` is less than `elementData.length`. A common mistake is to negative an expression of the form `A < B` by writing `A > B`, but this is incorrect as it could also be the case that `A == B`. The correct negation of `A < B` is `A >= B`. Thus, the negation of `size < elementData.length` is `size >= elementData.length`.
+The first piece to sort out is formalizing "out of space in `elementData`". One way to do this is to consider the opposite condition, and then reverse it: if we have enough space to add an element to `elementData`, then `size` must be less than `elementData.length`. Therefore, if we *don't* have enough space, then it must *not* be true that `size` is less than `elementData.length`. A common mistake is to negate an expression of the form `A < B` by writing `A > B`, but this is incorrect as it could also be the case that `A == B`. The correct negation of `A < B` is `A >= B`. Thus, the negation of `size < elementData.length` is `size >= elementData.length`.
 
 ```java
 if (size >= elementData.length) {
@@ -281,3 +281,71 @@ public boolean add(Object element) {
 ```
 
 We should avoid reinventing the wheel, so the second option is the better one. I simply showed how to do it manually for demonstration purposes.
+
+## `basic` tests
+The tests with the `basic` tag cover all functionality other than that related to exceptions and iterators.
+
+### `size()`
+The `size` method is pretty straightforward.
+
+```java
+@Override
+public int size() {
+    return size;
+}
+```
+
+We can have methods and fields with the same name in a class because they are always used in distinct ways: if `size` appears followed by `()`, then we must be referring to the method; if it appears by itself, we must be referring to the field.
+
+We execute the command `make INCLUDE_TAG='core|basic'` to run both `core` and `basic` tests. After implementing `size`, we only have six failures.
+
+### `set(int, Object)`
+This method replaces the Object at a given index with the given object and returns the old object. For example, if an object with reference `@0` were at index 2 in our `ArrayList`, and we invoked `set(2, alpha)`, where `alpha` holds reference `@1`, then our `ArrayList` would now have `@1` at index 2 and would return `@0`.
+
+For example, the code
+
+```java
+public static void main(String[] args) {
+    ArrayList alpha = new ArrayList();
+    
+    Object bravo = new Object();
+    Object charlie = new Object();
+    Object delta = new Object();
+    
+    alpha.add(bravo);
+    alpha.add(charlie);
+    
+    System.out.println(alpha.get(1) == charlie); // true
+    
+    Object echo = alpha.set(1, delta);
+
+    System.out.println(alpha.get(1) == charlie); // false
+    System.out.println(alpha.get(1) == delta); // true
+    System.out.println(echo == charlie); // true
+}
+```
+
+should print
+
+```
+true
+false
+true
+true
+```
+
+Implementing `set` is pretty simple.
+
+```java
+@Override
+public Object set(int index, Object element) {
+    Object old = elementData[index];
+    elementData[index] = element;
+    return old;
+}
+```
+
+We need to use the variable `old` to save the previous value held by the `ArrayList` before we overwrite it with the new value. Otherwise, we wouldn't be able to return it.
+
+After we run `make INCLUDE_TAG='core|basic'` in the terminal, we see that the only method that tests `set` has passed: `test set(int, Object) ✔`.
+
