@@ -349,3 +349,63 @@ We need to use the variable `old` to save the previous value held by the `ArrayL
 
 After we run `make INCLUDE_TAG='core|basic'` in the terminal, we see that the only method that tests `set` has passed: `test set(int, Object) ✔`.
 
+### `add(int, Object)`
+How does [`add(int, Object)`](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/ArrayList.html#add(int,E)) differ from `add(Object)`? The latter always appends the new element to the end of the `ArrayList`, while the former inserts it into the specified index, "pushing" elements to the right.
+
+Suppose we have an `ArrayList` with these contents:
+
+0 | 1 | 2
+--- | --- | ---
+A | B | C
+
+After invoking `add(1, D)`, the `ArrayList` would look like
+
+0 | 1 | 2 | 3
+--- | --- | --- | ---
+A | D | B | C
+
+Note how `D` now occupies index 1, and the previous contents have moved right.
+
+If our backing array is already full, then we'll need to enlarge the array and copy the contents, just as we did for `add(Object)`. We'll just copy and paste the logic from it.
+
+```java
+if (size >= elementData.length) {
+    elementData = Arrays.copyOf(elementData, size * 2);
+}
+```
+
+As a rule of thumb, if you find yourself copying and pasting code, you're probably doing something wrong. We'll let it stand for now, and loop back once we've finished `add(int, Object)`.
+
+Now that we know that we have enough room in our array for one more, we can focus on the logic. The easiest strategy is to copy each element to the right, then place the new element at the given index. We don't need to touch any values before the given index.
+
+```java
+for (int i = size; i > index; i--) {
+    elementData[i] = elementData[i - 1];
+}
+elementData[index] = element;
+```
+
+Don't forget to increment `size`.
+
+```java
+size++;
+```
+
+Putting it all together, we have
+
+```java
+@Override
+public void add(int index, Object element) {
+    if (size >= elementData.length) {
+        elementData = Arrays.copyOf(elementData, size * 2);
+    }
+
+    for (int i = size; i > index; i--) {
+        elementData[i] = elementData[i - 1];
+    }
+    elementData[index] = element;
+    size++;
+}
+```
+
+Running the command `make INCLUDE_TAG='core|basic'` in the terminal, we're down to only two failed tests, those for `remove`.
