@@ -461,3 +461,5 @@ We currently have two copies of `E` in our array, so the line `elementData[size]
 A | B | D | E | `null` | `null` | `null` | `null` | `null` | `null`
 
 We need to proactively `null`ify the previous reference because if the user later sets index 3 to something other than `E`, we would still be holding an unnecessary reference to `E` inside of our array, silently preventing it from being garbage collected. See the "Eliminate obsolete object references" item in [Joshua Bloch's Effective Java](https://www.oreilly.com/library/view/effective-java-3rd/9780134686097/).
+
+Running the command `make INCLUDE_TAG='core|basic'` in the terminal, we see that we now pass all of the `core` and `basic` tests.
