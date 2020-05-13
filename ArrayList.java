@@ -16,7 +16,15 @@ public class ArrayList implements List {
 
     @Override
     public void add(int index, Object element) {
-        // TODO: implement me
+        if (size >= elementData.length) {
+            elementData = Arrays.copyOf(elementData, size * 2);
+        }
+
+        for (int i = size; i > index; i--) {
+            elementData[i] = elementData[i - 1];
+        }
+        elementData[index] = element;
+        size++;
     }
 
     @Override
@@ -54,8 +62,13 @@ public class ArrayList implements List {
 
     @Override
     public Object remove(int index) {
-        // TODO: implement me
-        return null;
+        Object old = elementData[index];
+        size--;
+        for (int i = index; i < size; i++) {
+            elementData[i] = elementData[i + 1];
+        }
+        elementData[size] = null;
+        return old;
     }
 
     @Override

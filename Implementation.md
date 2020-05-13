@@ -213,7 +213,7 @@ if (size >= elementData.length) {
 }
 ```
 
-There is an edge case here that could trip us up in the future. If we were to revise our `ArrayList` class to initially have a size of 0, our resizing code wouldn't work because `0 * 2 ==> 0`, so we would just get an `ArrayIndexOutOfBoundsException` when attempting to add to the `ArrayList`. It would probably be a good idea to create a new array of length `size * 2 + 1`, but we won't worry about that.
+There is an edge case here that could trip us up in the future. If we were to revise our `ArrayList` class to initialize `elementData` with a length of 0, our resizing code wouldn't work because `0 * 2 ==> 0`, so we would just get an `ArrayIndexOutOfBoundsException` when attempting to add to the `ArrayList`. It would probably be a good idea to create a new array of length `size * 2 + 1`, but we won't worry about that.
 
 This edge case illustrates how errors can creep into code over time. A section of code written with unstated assumptions for its correctness can fail if those assumptions become false in the future.
 
@@ -349,3 +349,115 @@ We need to use the variable `old` to save the previous value held by the `ArrayL
 
 After we run `make INCLUDE_TAG='core|basic'` in the terminal, we see that the only method that tests `set` has passed: `test set(int, Object) ✔`.
 
+### `add(int, Object)`
+How does [`add(int, Object)`](https://docs.oracle.com/en/java/javase/11/docs/api/java.base/java/util/ArrayList.html#add(int,E)) differ from `add(Object)`? The latter always appends the new element to the end of the `ArrayList`, while the former inserts it into the specified index, "pushing" elements to the right.
+
+Suppose we have an `ArrayList` with these contents:
+
+0 | 1 | 2
+--- | --- | ---
+A | B | C
+
+After invoking `add(1, D)`, the `ArrayList` would look like
+
+0 | 1 | 2 | 3
+--- | --- | --- | ---
+A | D | B | C
+
+Note how `D` now occupies index 1, and the previous contents have moved right.
+
+If our backing array is already full, then we'll need to enlarge the array and copy the contents, just as we did for `add(Object)`. We'll just copy and paste the logic from it.
+
+```java
+if (size >= elementData.length) {
+    elementData = Arrays.copyOf(elementData, size * 2);
+}
+```
+
+As a rule of thumb, if you find yourself copying and pasting code, you're probably doing something wrong. We'll let it stand for now, and loop back once we've finished `add(int, Object)`.
+
+Now that we know that we have enough room in our array for one more, we can focus on the logic. The easiest strategy is to copy each element to the right, then place the new element at the given index. We don't need to touch any values before the given index.
+
+```java
+for (int i = size; i > index; i--) {
+    elementData[i] = elementData[i - 1];
+}
+elementData[index] = element;
+```
+
+Don't forget to increment `size`.
+
+```java
+size++;
+```
+
+Putting it all together, we have
+
+```java
+@Override
+public void add(int index, Object element) {
+    if (size >= elementData.length) {
+        elementData = Arrays.copyOf(elementData, size * 2);
+    }
+
+    for (int i = size; i > index; i--) {
+        elementData[i] = elementData[i - 1];
+    }
+    elementData[index] = element;
+    size++;
+}
+```
+
+Running the command `make INCLUDE_TAG='core|basic'` in the terminal, we're down to only two failed tests, those for `remove`.
+
+### `remove(int)`
+Implementing `remove` isn't really any more complicated than `add(int, Object)`, but it provides opportunities to trip up with an [off-by-one error](https://en.wikipedia.org/wiki/Off-by-one_error).
+
+The basic idea is to save the `Object` being removed (because we need to return it), shift the remaining "to the left", decrement size, and return the removed object.
+
+Here is one possible implementation.
+
+```java
+@Override
+public Object remove(int index) {
+    Object old = elementData[index];
+    size--;
+    for (int i = index; i < size; i++) {
+        elementData[i] = elementData[i + 1];
+    }
+    elementData[size] = null;
+    return old;
+}
+```
+
+When `remove` begins running, `size` points to the first free "slot" in `elementData`; `size - 1` is the last array slot that actually holds data. Since we are copying each array element from the right to the left, we want to have `i` begin at `index` and end at the original value of `size` minus two.
+
+We can kill two birds with one stone by decrementing `size` before beginning the loop. Now, `size` points to the last array slot with data, and we want to copy from right to left while `i < size`.
+
+Let's look at a concrete example to see what this looks like under the hood. Suppose that we have an `ArrayList` with `elementData` length of 10, and we have added `A`, `B`, `C`, `D`, and `E`, in that order. `size` is 5, and `elementData` looks like this:
+
+0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+--- | --- | --- | --- | --- | --- | --- | --- | --- | ---
+A | B | C | D | E | `null` | `null` | `null` | `null` | `null`
+
+We now invoke `remove(2)`. It first saves `C` in `old`, then decrements `size` to 4. In the first pass through the loop, `i` is set to 2, and `elementData` becomes
+
+0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+--- | --- | --- | --- | --- | --- | --- | --- | --- | ---
+A | B | D | D | E | `null` | `null` | `null` | `null` | `null`
+
+`i` is incremented to 3, which is less than `size`, so the loop body executes again.
+
+0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+--- | --- | --- | --- | --- | --- | --- | --- | --- | ---
+A | B | D | E | E | `null` | `null` | `null` | `null` | `null`
+
+`i` is incremented to 4, making the loop condition (`i < size`) false, so the loop ends.
+
+We currently have two copies of `E` in our array, so the line `elementData[size] = null;` sets the second one to `null`:
+
+0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
+--- | --- | --- | --- | --- | --- | --- | --- | --- | ---
+A | B | D | E | `null` | `null` | `null` | `null` | `null` | `null`
+
+We need to proactively `null`ify the previous reference because if the user later sets index 3 to something other than `E`, we would still be holding an unnecessary reference to `E` inside of our array, silently preventing it from being garbage collected. See the "Eliminate obsolete object references" item in [Joshua Bloch's Effective Java](https://www.oreilly.com/library/view/effective-java-3rd/9780134686097/).
